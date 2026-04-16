@@ -9,7 +9,7 @@ servers:
       env:
         WORKSPACE_DIR: "/tmp/mcp_workspace"
 
-    - name: "crypto-search"
+    - name: "crypto_search"
       command: "python"
       args: ["/servers/crypto.py"]
       transport: "stdio"
