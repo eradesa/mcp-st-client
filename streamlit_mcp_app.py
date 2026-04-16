@@ -210,7 +210,7 @@ class MCPClient:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         successful = 0
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):   # ✅ Catch CancelledError and others
                 logger.error(f"Connection failed: {result}")
             else:
                 self.servers[result.name] = result
@@ -888,4 +888,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(
