@@ -1,4 +1,4 @@
-# streamlit_mcp_app.py - With write_file → download interception
+# streamlit_mcp_app.py - Full corrected version with timeout fix
 import os
 import re
 import asyncio
@@ -8,7 +8,7 @@ import logging
 import threading
 import queue
 import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from contextlib import AsyncExitStack
 
@@ -382,7 +382,7 @@ class SyncMCPClient:
         self._response_cache[cache_key] = (time.time(), result)
         return result
 
-    def get_servers(self, timeout=30) -> Dict:
+    def get_servers(self, timeout=30) -> Dict:   # Increased timeout to 30 seconds
         cache_key = "servers_list"
         if cache_key in self._response_cache:
             cached_time, cached_value = self._response_cache[cache_key]
@@ -505,7 +505,7 @@ class SyncMCPClient:
 
 
 # -----------------------------------------------------------------------------
-# DeepSeek Engine with write_file interception
+# DeepSeek Engine with cumulative search statistics
 # -----------------------------------------------------------------------------
 class DeepSeekEngine:
     def __init__(self, mcp_client: Optional[SyncMCPClient] = None):
@@ -524,12 +524,6 @@ class DeepSeekEngine:
         if "__" in full_name:
             return full_name.split("__", 1)
         return "unknown", full_name
-
-    def _is_write_file_tool(self, tool_name: str) -> bool:
-        """Check if the tool is a write_file variant."""
-        # Handle both "write_file" and "server__write_file"
-        base_name = tool_name.split("__")[-1] if "__" in tool_name else tool_name
-        return base_name == "write_file"
 
     def _track_search(self, tool_name: str, args: dict, result: str):
         if "search" in tool_name.lower():
@@ -557,14 +551,9 @@ class DeepSeekEngine:
             'results': 0
         }
 
-    def process_conversation(self, messages: List[Dict], manual_limit: int = 0) -> Tuple[str, List[Dict], List[Dict]]:
-        """
-        Returns: (final_answer, updated_messages, pending_downloads)
-        pending_downloads is a list of dicts with keys: 'content', 'filename', 'tool_call_id'
-        """
+    def process_conversation(self, messages: List[Dict], manual_limit: int = 0) -> tuple:
         tools_schema = self.mcp.get_tools_schema() if self.mcp else []
         current_messages = messages.copy()
-        pending_downloads = []
 
         while True:
             response = self.client.chat.completions.create(
@@ -580,57 +569,22 @@ class DeepSeekEngine:
             if not (self.mcp and hasattr(msg, 'tool_calls') and msg.tool_calls):
                 if msg.content:
                     current_messages.append({"role": "assistant", "content": msg.content})
-                    return msg.content, current_messages, pending_downloads
-                return "", current_messages, pending_downloads
+                    return msg.content, current_messages
+                return "", current_messages
 
-            # Record assistant tool call
-            tool_calls_data = [tc.model_dump() for tc in msg.tool_calls]
             current_messages.append({
                 "role": "assistant",
                 "content": None,
-                "tool_calls": tool_calls_data
+                "tool_calls": [tc.model_dump() for tc in msg.tool_calls]
             })
 
             for tc in msg.tool_calls:
                 args = json.loads(tc.function.arguments)
                 srv_name, tool_name = self._parse_tool_name(tc.function.name)
 
-                # Intercept write_file calls
-                if self._is_write_file_tool(tool_name):
-                    content = args.get("content", "")
-                    filename = args.get("filename", "output.txt")
-                    # Remove any path components; just keep basename for safety
-                    filename = os.path.basename(filename)
-                    if not filename:
-                        filename = "output.txt"
-                    # Add .txt if no extension (common in the original tool)
-                    if "." not in filename:
-                        filename += ".txt"
-
-                    # Store for later download
-                    pending_downloads.append({
-                        "content": content,
-                        "filename": filename,
-                        "tool_call_id": tc.id
-                    })
-
-                    # Add a tool response that explains the download instead of server write
-                    tool_response = (
-                        f"File '{filename}' prepared for download. "
-                        f"Since the app is hosted, the file will be saved to your local computer "
-                        f"via a download button. Click the button below to save it."
-                    )
-                    current_messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": tool_response
-                    })
-                    logger.info(f"Intercepted write_file: {filename} (will offer download)")
-                    continue  # Skip actual MCP execution
-
-                # Normal tool execution
                 if "search" in tool_name.lower() and manual_limit > 0:
-                    if tool_name.lower() != 'perform_websearch':
+                    #print ('####'+tool_name.lower()+'#######')
+                    if tool_name.lower()!='perform_websearch':
                         args["limit"] = manual_limit
                         logger.info(f"Manual override: limit={manual_limit}")
 
@@ -662,8 +616,6 @@ def init_state():
         st.session_state.messages_ui = []
     if "mcp_connected" not in st.session_state:
         st.session_state.mcp_connected = False
-    if "pending_downloads" not in st.session_state:
-        st.session_state.pending_downloads = []
 
 
 def connect_mcp(config_path: str):
@@ -713,13 +665,12 @@ def disconnect_mcp():
     st.session_state.conv.clear()
     st.session_state.conv.add_message("system", "You are a helpful AI assistant. No external tools.")
     st.session_state.messages_ui = []
-    st.session_state.pending_downloads = []
 
 
 def main():
     st.set_page_config(page_title="DeepSeek + MCP", page_icon="🤖", layout="wide")
     st.title("🤖 DeepSeek Chat with MCP")
-    st.markdown("Connect MCP servers to use tools, prompts, and resources. Files that would be written are offered as downloads.")
+    st.markdown("Connect MCP servers to use tools, prompts, and resources.")
     init_state()
 
     with st.sidebar:
@@ -842,11 +793,10 @@ def main():
             sys_msg = "You have access to MCP tools, prompts, and resources." if st.session_state.mcp_connected else "You are a helpful AI assistant."
             st.session_state.conv.add_message("system", sys_msg)
             st.session_state.messages_ui = []
-            st.session_state.pending_downloads = []
             st.rerun()
 
     # Chat display
-    for i, msg in enumerate(st.session_state.messages_ui):
+    for msg in st.session_state.messages_ui:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
@@ -858,7 +808,7 @@ def main():
 
         with st.spinner("Thinking..."):
             try:
-                answer, new_conv, downloads = st.session_state.engine.process_conversation(
+                answer, new_conv = st.session_state.engine.process_conversation(
                     st.session_state.conv.get_messages(),
                     manual_limit=search_limit if st.session_state.mcp_connected else 0
                 )
@@ -866,25 +816,11 @@ def main():
                 st.session_state.messages_ui.append({"role": "assistant", "content": answer})
                 with st.chat_message("assistant"):
                     st.markdown(answer)
-
-                # Display download buttons for any files the AI wanted to write
-                if downloads:
-                    st.session_state.pending_downloads = downloads
-                    for dl in downloads:
-                        st.download_button(
-                            label=f"📥 Download {dl['filename']}",
-                            data=dl['content'],
-                            file_name=dl['filename'],
-                            mime="text/plain",
-                            key=f"download_{dl['tool_call_id']}_{time.time()}"
-                        )
-                    # Clear after offering downloads
-                    st.session_state.pending_downloads = []
             except Exception as e:
                 st.error(f"Error: {e}")
                 logger.exception("Processing error")
 
-    st.caption("Powered by DeepSeek. MCP servers provide tools, prompts, and resources. Write operations are converted to downloads.")
+    st.caption("Powered by DeepSeek. MCP servers provide tools, prompts, and resources.")
 
 
 if __name__ == "__main__":

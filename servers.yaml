@@ -10,8 +10,8 @@ servers:
         WORKSPACE_DIR: "/tmp/mcp_workspace"
 
     - name: "crypto-search"
-      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
-      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/crypto.py"]
+      command: "python"
+      args: ["/servers/crypto.py"]
       transport: "stdio"
       #env:
       #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
