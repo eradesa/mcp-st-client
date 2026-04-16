@@ -2,6 +2,14 @@
 servers:
   # Local stdio-based servers
   local:
+
+    - name: "remote_test_server_web_search"
+      command: "npx"
+      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp/"]
+      #env:
+      #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+      transport: "streamable-http"
+
     - name: "crypto_search"
       command: "python"
       args: ["/servers/crypto.py"]

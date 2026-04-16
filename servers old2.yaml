@@ -10,8 +10,8 @@ servers:
         WORKSPACE_DIR: "/tmp/mcp_workspace"
 
     - name: "crypto_search"
-      command: "python"
-      args: ["/servers/crypto.py"]
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/crypto.py"]
       transport: "stdio"
       #env:
       #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
@@ -69,19 +69,19 @@ servers:
       transport: "stdio"
 
 
-    - name: "git_web_search_serpstack_br"
-      command: "uvx"
-      args: ["--from", "git+https://github.com/eradesa/mcp-test-server.git@MCP-STDIO", "mcp-server"]
-      env:
-        FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
-      transport: "stdio"
-  
-    #- name: "remote_test_server_web_search"
-    #  command: "npx"
-    #  args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp/"]
+    #- name: "git_web_search_serpstack_br"
+    #  command: "uvx"
+    #  args: ["--from", "git+https://github.com/eradesa/mcp-test-server.git@MCP-STDIO", "mcp-server"]
     #  env:
     #    FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
-    #  transport: "streamable-http"
+    #  transport: "stdio"
+  
+    - name: "remote_test_server_web_search"
+      command: "npx"
+      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp/"]
+      #env:
+      #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+      transport: "streamable-http"
 
     #- name: "local_test_server_web_search"
     #  command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/Sec7-MCP-Server/.venv/bin/python"
