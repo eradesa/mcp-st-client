@@ -1,0 +1,104 @@
+# servers.yaml
+servers:
+  # Local stdio-based servers
+  local:
+    - name: "filesystem"
+      command: "python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/example_filesystem_server.py"]
+      transport: "stdio"
+      env:
+        WORKSPACE_DIR: "/tmp/mcp_workspace"
+
+    - name: "crypto_search"
+      command: "python"
+      args: ["/servers/crypto.py"]
+      transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
+
+    #- name: "Web_Search"
+    #  command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+    #  args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/websearch.py"]
+    #  transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
+
+    - name: "Take_Screenshot"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/screenshot.py"]
+      transport: "stdio"
+      env:
+        WORKSPACE_DIR: "/tmp/mcp_workspace" 
+    
+    - name: "Local_Notes"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/local.py"]
+      transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
+    
+    - name: "Local_DB"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/other_inputs.py"]
+      transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
+    
+    - name: "Prompt_Server"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/prompt_server.py"]
+      transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace" 
+
+    - name: "Resources_Server"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/resources.py"]
+      transport: "stdio"
+      #env:
+      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
+
+   
+    - name: "open_web_search"
+      command: "npx"
+      args: ["open-websearch@latest"]
+      env:
+        MODE: "stdio"                     # Force stdio mode
+        DEFAULT_SEARCH_ENGINE: "brave"   # or bing, exa, brave, duckduckgo        
+        ALLOWED_SEARCH_ENGINES: "brave,duckduckgo,exa"
+      transport: "stdio"
+
+
+    - name: "git_web_search_serpstack_br"
+      command: "uvx"
+      args: ["--from", "git+https://github.com/eradesa/mcp-test-server.git@MCP-STDIO", "mcp-server"]
+      env:
+        FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+      transport: "stdio"
+  
+    #- name: "remote_test_server_web_search"
+    #  command: "npx"
+    #  args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp/"]
+    #  env:
+    #    FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+    #  transport: "streamable-http"
+
+    #- name: "local_test_server_web_search"
+    #  command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/Sec7-MCP-Server/.venv/bin/python"
+    #  args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/Sec7-MCP-Server/src/mcpserver/__main__.py"]
+    #  env:
+    #    FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+    #  transport: "streamable-http"
+  
+  # Remote/cloud servers (SSE/HTTP)
+  #remote:
+    #- name: "remote_test_server"
+    #  command: "npx"
+    #  url: "http://127.0.0.1:8000/mcp"
+    #  transport: "streamable-http"
+    
+    
+    
+    #- name: "deepseek-thinker"
+    #  url: "http://localhost:5000/sse"
+    #  transport: "streamable-http"

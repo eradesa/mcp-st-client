@@ -9,4 +9,15 @@ servers:
       #env:
       #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
 
+    - name: "filesystem"
+      command: "python"
+      args: ["/servers/example_filesystem_server.py"]
+      transport: "stdio"
+      env:
+        WORKSPACE_DIR: "/tmp/mcp_workspace"
+      
     
+    - name: "Prompt_Server"
+      command: "python"
+      args: ["/servers/prompt_server.py"]
+      transport: "stdio"
