@@ -5,27 +5,17 @@ servers:
 
     - name: "remote_test_server_web_search"
       command: "npx"
+      #args: ["mcp-remote", "http://0.0.0.0:8001/mcp", "--allow-http"]
       args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp/"]
       #env:
       #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
       transport: "streamable-http"
-
-    - name: "crypto_search"
-      command: "python"
-      args: ["/servers/crypto.py"]
-      transport: "stdio"
-      #env:
-      #  WORKSPACE_DIR: "/tmp/mcp_workspace"   
-
-    - name: "filesystem"
-      command: "python"
-      args: ["/servers/example_filesystem_server.py"]
-      transport: "stdio"
-      env:
-        WORKSPACE_DIR: "/tmp/mcp_workspace"
-      
     
-    - name: "Prompt_Server"
-      command: "python"
-      args: ["/servers/prompt_server.py"]
+    - name: "open_web_search"
+      command: "npx"
+      args: ["open-websearch@latest"]
+      env:
+        MODE: "stdio"                     # Force stdio mode
+        DEFAULT_SEARCH_ENGINE: "brave"   # or bing, exa, brave, duckduckgo        
+        ALLOWED_SEARCH_ENGINES: "brave,duckduckgo,exa"
       transport: "stdio"
