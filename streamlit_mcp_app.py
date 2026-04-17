@@ -379,7 +379,7 @@ class SyncMCPClient:
         self._response_cache = {}
         self._cache_timeout = 5
 
-    def connect(self, config_path: str, timeout=200) -> Dict[str, Any]:
+    def connect(self, config_path: str, timeout=400) -> Dict[str, Any]:
         self._client.request_queue.put({"type": "connect", "config_path": config_path})
         return self._wait_for_result("connect_result", timeout)
 
