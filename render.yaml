@@ -6,10 +6,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.13
-      - key: MCP_OAUTH_HOST
-        value: localhost
-      - key: MCP_OAUTH_PORT
-        value: "8471"
+      - key: FASTMCP_OAUTH_REDIRECT_URI
+        value: https://mcp-st-client-test.onrender.com/oauth/callback        
     repo: https://github.com/eradesa/mcp-st-client.git
     plan: free # or starter, pro, etc.
     region: oregon
