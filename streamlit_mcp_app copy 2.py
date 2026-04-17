@@ -210,7 +210,7 @@ class MCPClient:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         successful = 0
         for i, result in enumerate(results):
-            if isinstance(result, BaseException):
+            if isinstance(result, BaseException):   # ✅ Catch CancelledError and others
                 logger.error(f"Connection failed: {result}")
             else:
                 self.servers[result.name] = result
@@ -526,6 +526,8 @@ class DeepSeekEngine:
         return "unknown", full_name
 
     def _is_write_file_tool(self, tool_name: str) -> bool:
+        """Check if the tool is a write_file variant."""
+        # Handle both "write_file" and "server__write_file"
         base_name = tool_name.split("__")[-1] if "__" in tool_name else tool_name
         return base_name == "write_file"
 
@@ -555,15 +557,11 @@ class DeepSeekEngine:
             'results': 0
         }
 
-    def get_search_stats_dict(self):
-        """Return a JSON‑serializable copy of the stats."""
-        return {
-            'count': self.search_stats['count'],
-            'engines': sorted(self.search_stats['engines']),
-            'results': self.search_stats['results']
-        }
-
     def process_conversation(self, messages: List[Dict], manual_limit: int = 0) -> Tuple[str, List[Dict], List[Dict]]:
+        """
+        Returns: (final_answer, updated_messages, pending_downloads)
+        pending_downloads is a list of dicts with keys: 'content', 'filename', 'tool_call_id'
+        """
         tools_schema = self.mcp.get_tools_schema() if self.mcp else []
         current_messages = messages.copy()
         pending_downloads = []
@@ -585,6 +583,7 @@ class DeepSeekEngine:
                     return msg.content, current_messages, pending_downloads
                 return "", current_messages, pending_downloads
 
+            # Record assistant tool call
             tool_calls_data = [tc.model_dump() for tc in msg.tool_calls]
             current_messages.append({
                 "role": "assistant",
@@ -596,21 +595,26 @@ class DeepSeekEngine:
                 args = json.loads(tc.function.arguments)
                 srv_name, tool_name = self._parse_tool_name(tc.function.name)
 
+                # Intercept write_file calls
                 if self._is_write_file_tool(tool_name):
                     content = args.get("content", "")
                     filename = args.get("filename", "output.txt")
+                    # Remove any path components; just keep basename for safety
                     filename = os.path.basename(filename)
                     if not filename:
                         filename = "output.txt"
+                    # Add .txt if no extension (common in the original tool)
                     if "." not in filename:
                         filename += ".txt"
 
+                    # Store for later download
                     pending_downloads.append({
                         "content": content,
                         "filename": filename,
                         "tool_call_id": tc.id
                     })
 
+                    # Add a tool response that explains the download instead of server write
                     tool_response = (
                         f"File '{filename}' prepared for download. "
                         f"Since the app is hosted, the file will be saved to your local computer "
@@ -622,8 +626,9 @@ class DeepSeekEngine:
                         "content": tool_response
                     })
                     logger.info(f"Intercepted write_file: {filename} (will offer download)")
-                    continue
+                    continue  # Skip actual MCP execution
 
+                # Normal tool execution
                 if "search" in tool_name.lower() and manual_limit > 0:
                     if tool_name.lower() != 'perform_websearch':
                         args["limit"] = manual_limit
@@ -659,13 +664,6 @@ def init_state():
         st.session_state.mcp_connected = False
     if "pending_downloads" not in st.session_state:
         st.session_state.pending_downloads = []
-    # Dedicated session state for reliable UI updates
-    if "search_stats" not in st.session_state:
-        st.session_state.search_stats = {
-            'count': 0,
-            'engines': [],
-            'results': 0
-        }
 
 
 def connect_mcp(config_path: str):
@@ -703,7 +701,6 @@ def connect_mcp(config_path: str):
             "Mention these statistics in your response - they will be added automatically."
         )
         st.session_state.messages_ui = []
-        st.session_state.search_stats = st.session_state.engine.get_search_stats_dict()
     return num
 
 
@@ -717,7 +714,6 @@ def disconnect_mcp():
     st.session_state.conv.add_message("system", "You are a helpful AI assistant. No external tools.")
     st.session_state.messages_ui = []
     st.session_state.pending_downloads = []
-    st.session_state.search_stats = {'count': 0, 'engines': [], 'results': 0}
 
 
 def main():
@@ -734,7 +730,7 @@ def main():
                 try:
                     n = connect_mcp(cfg)
                     st.success(f"Connected to {n} server(s)")
-                    time.sleep(0.5)
+                    time.sleep(0.5)  # Give background thread time to settle
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed: {e}")
@@ -751,25 +747,24 @@ def main():
 
             st.divider()
             st.subheader("📊 Cumulative Search Statistics")
-            stats = st.session_state.search_stats
+            engine = st.session_state.engine
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Searches", stats['count'])
+                st.metric("Total Searches", engine.search_stats['count'])
             with col2:
-                st.metric("Total Results", stats['results'])
+                st.metric("Total Results", engine.search_stats['results'])
             with col3:
-                if stats['engines']:
-                    st.write("Engines:", ", ".join(stats['engines']))
+                if engine.search_stats['engines']:
+                    st.write("Engines:", ", ".join(sorted(engine.search_stats['engines'])))
                 else:
                     st.write("No searches yet")
-            if stats['count'] > 0:
+            if engine.search_stats['count'] > 0:
                 with st.expander("📋 Detailed Search Log"):
-                    st.markdown(f"**Searches performed:** {stats['count']}")
-                    st.markdown(f"**Engines used:** {', '.join(stats['engines'])}")
-                    st.markdown(f"**Total results retrieved:** {stats['results']}")
+                    st.markdown(f"**Searches performed:** {engine.search_stats['count']}")
+                    st.markdown(f"**Engines used:** {', '.join(sorted(engine.search_stats['engines']))}")
+                    st.markdown(f"**Total results retrieved:** {engine.search_stats['results']}")
             if st.button("Reset Statistics", use_container_width=True):
-                st.session_state.engine.reset_search_stats()
-                st.session_state.search_stats = st.session_state.engine.get_search_stats_dict()
+                engine.reset_search_stats()
                 st.rerun()
 
             st.divider()
@@ -778,8 +773,10 @@ def main():
                 disconnect_mcp()
                 st.rerun()
 
+            # Display tools with error handling
             with st.expander("🔧 Available Tools"):
                 try:
+                    # Small delay to ensure background thread is ready
                     time.sleep(0.3)
                     servers = st.session_state.mcp_client.get_servers()
                     for srv_name, srv_info in servers.items():
@@ -791,6 +788,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error loading tools: {e}")
 
+            # Display prompts with "Use" buttons
             with st.expander("📋 Available Prompts"):
                 try:
                     prompts = st.session_state.mcp_client.list_prompts()
@@ -815,6 +813,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error loading prompts: {e}")
 
+            # Display resources with "Read" buttons
             with st.expander("📁 Available Resources"):
                 try:
                     resources = st.session_state.mcp_client.list_resources()
@@ -868,9 +867,7 @@ def main():
                 with st.chat_message("assistant"):
                     st.markdown(answer)
 
-                # Update session state stats
-                st.session_state.search_stats = st.session_state.engine.get_search_stats_dict()
-
+                # Display download buttons for any files the AI wanted to write
                 if downloads:
                     st.session_state.pending_downloads = downloads
                     for dl in downloads:
@@ -881,11 +878,8 @@ def main():
                             mime="text/plain",
                             key=f"download_{dl['tool_call_id']}_{time.time()}"
                         )
+                    # Clear after offering downloads
                     st.session_state.pending_downloads = []
-
-                # 🔄 Force a rerun so the sidebar statistics refresh immediately
-                st.rerun()
-
             except Exception as e:
                 st.error(f"Error: {e}")
                 logger.exception("Processing error")
