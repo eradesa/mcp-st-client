@@ -1,7 +1,7 @@
 # servers.yaml
 servers:
   # Local stdio-based servers
-  remote:
+  local:
   
     - name: "remote_test_server_web_search"
       command: "npx"
