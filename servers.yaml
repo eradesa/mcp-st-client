@@ -1,12 +1,13 @@
 # servers.yaml
 servers:
   # Local stdio-based servers
-  local:
-
+  remote:
+  
     - name: "remote_test_server_web_search"
       command: "npx"
       #args: ["mcp-remote", "http://0.0.0.0:8001/mcp", "--allow-http"]
-      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp"]
+      #args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp"]
+      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp", "8471", "localhost"]
       #env:
       #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
       transport: "streamable-http"
