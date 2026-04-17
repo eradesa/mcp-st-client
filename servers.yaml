@@ -10,6 +10,8 @@ servers:
       #env:
       #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
       transport: "streamable-http"
+      oauth:
+        redirectUri: "https://mcp-st-client-test.onrender.com/oauth/callback"
     
     - name: "open_web_search"
       command: "npx"
