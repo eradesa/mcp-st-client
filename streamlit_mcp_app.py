@@ -684,7 +684,7 @@ def connect_mcp(config_path: str):
     progress_placeholder.info("⏳ Connecting to MCP servers...")
 
     try:
-        os.environ["FASTMCP_OAUTH_REDIRECT_URI"] = "https://mcp-st-client-test.onrender.com/oauth/callback"
+        os.environ["FASTMCP_OAUTH_REDIRECT_URI"] = "https://mcp-st-client-test.onrender.com:8471/oauth/callback"
         mcp = SyncMCPClient()
         result = mcp.connect(config_path)
 

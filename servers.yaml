@@ -7,7 +7,7 @@ servers:
       command: "npx"
       #args: ["mcp-remote", "http://0.0.0.0:8001/mcp", "--allow-http"]
       #args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp"]
-      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp", "8471", "localhost"]
+      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp", "localhost:8471"]
       #env:
       #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
       transport: "streamable-http"
