@@ -1,0 +1,26 @@
+# render.yaml
+services:
+  - type: web
+    name: streamlit-mcp-client
+    runtime: python
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+    repo: https://github.com/eradesa/mcp-st-client.git
+    plan: free # or starter, pro, etc.
+    region: oregon
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      # Install Node.js if your MCP servers require it
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get install -y nodejs
+      # Install global npm packages that your MCP servers may need
+      npm install -g @modelcontextprotocol/server-filesystem
+    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: MCP_CONFIG_PATH
+        value: /etc/render/mcp_config.yaml
+      # Additional environment variables for your MCP servers
