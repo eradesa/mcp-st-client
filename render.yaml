@@ -5,9 +5,7 @@ services:
     runtime: python
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.13
-      - key: FASTMCP_OAUTH_REDIRECT_URI
-        value: https://mcp-st-client-test.onrender.com/oauth/callback        
+        value: 3.12.13           
     repo: https://github.com/eradesa/mcp-st-client.git
     plan: free # or starter, pro, etc.
     region: oregon
