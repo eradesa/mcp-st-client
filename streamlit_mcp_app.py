@@ -1,4 +1,4 @@
-# streamlit_mcp_app.py - With write_file → download interception
+# streamlit_mcp_app.py - With write_file → download interception and detailed connection feedback
 import os
 import re
 import asyncio
@@ -147,8 +147,8 @@ class MCPClient:
 
             try:
                 if req["type"] == "connect":
-                    num = await self._connect_all_servers(req["config_path"])
-                    self.response_queue.put(("connect_result", num))
+                    result = await self._connect_all_servers(req["config_path"])
+                    self.response_queue.put(("connect_result", result))
                     self._invalidate_cache()
                 elif req["type"] == "execute_tool":
                     result = await self.execute_tool(req["server"], req["tool"], req["args"])
@@ -200,22 +200,34 @@ class MCPClient:
             for name, srv in self.servers.items()
         }
 
-    async def _connect_all_servers(self, config_path: str) -> int:
+    async def _connect_all_servers(self, config_path: str) -> Dict[str, Any]:
+        """Connect to all servers and return detailed results."""
         config = await self._load_config(config_path)
         tasks = []
+        server_names = []
         for srv in config.get("servers", {}).get("local", []):
             tasks.append(self._connect_stdio(srv))
+            server_names.append(srv.get("name", "unnamed"))
         for srv in config.get("servers", {}).get("remote", []):
             tasks.append(self._connect_sse(srv))
+            server_names.append(srv.get("name", "unnamed"))
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
+
         successful = 0
+        details = []
         for i, result in enumerate(results):
-            if isinstance(result, BaseException):
-                logger.error(f"Connection failed: {result}")
+            name = server_names[i]
+            if isinstance(result, Exception):
+                error_msg = str(result)
+                logger.error(f"Connection to '{name}' failed: {error_msg}")
+                details.append({"name": name, "success": False, "error": error_msg})
             else:
                 self.servers[result.name] = result
                 successful += 1
-        return successful
+                details.append({"name": result.name, "success": True, "error": None})
+
+        return {"successful": successful, "details": details}
 
     async def _load_config(self, path: str) -> dict:
         with open(path, 'r') as f:
@@ -367,7 +379,7 @@ class SyncMCPClient:
         self._response_cache = {}
         self._cache_timeout = 5
 
-    def connect(self, config_path: str, timeout=200) -> int:
+    def connect(self, config_path: str, timeout=200) -> Dict[str, Any]:
         self._client.request_queue.put({"type": "connect", "config_path": config_path})
         return self._wait_for_result("connect_result", timeout)
 
@@ -556,7 +568,6 @@ class DeepSeekEngine:
         }
 
     def get_search_stats_dict(self):
-        """Return a JSON‑serializable copy of the stats."""
         return {
             'count': self.search_stats['count'],
             'engines': sorted(self.search_stats['engines']),
@@ -659,7 +670,6 @@ def init_state():
         st.session_state.mcp_connected = False
     if "pending_downloads" not in st.session_state:
         st.session_state.pending_downloads = []
-    # Dedicated session state for reliable UI updates
     if "search_stats" not in st.session_state:
         st.session_state.search_stats = {
             'count': 0,
@@ -669,9 +679,38 @@ def init_state():
 
 
 def connect_mcp(config_path: str):
-    with st.spinner("Connecting to MCP servers..."):
+    """Connect to MCP servers and display detailed progress/errors."""
+    progress_placeholder = st.empty()
+    progress_placeholder.info("⏳ Connecting to MCP servers...")
+
+    try:
         mcp = SyncMCPClient()
-        num = mcp.connect(config_path)
+        result = mcp.connect(config_path)
+
+        successful = result["successful"]
+        details = result["details"]
+
+        # Build detailed feedback
+        success_list = []
+        failure_list = []
+        for d in details:
+            if d["success"]:
+                success_list.append(f"✅ {d['name']} connected successfully")
+            else:
+                failure_list.append(f"❌ {d['name']} failed: {d['error']}")
+
+        if successful == len(details):
+            progress_placeholder.success(f"🎉 All {successful} server(s) connected!")
+            for msg in success_list:
+                st.success(msg)
+        else:
+            progress_placeholder.warning(f"⚠️ Connected to {successful}/{len(details)} servers")
+            for msg in success_list:
+                st.success(msg)
+            for msg in failure_list:
+                st.error(msg)
+
+        # Initialize session state with the client
         st.session_state.mcp_client = mcp
         st.session_state.engine = DeepSeekEngine(mcp)
         st.session_state.mcp_connected = True
@@ -704,7 +743,12 @@ def connect_mcp(config_path: str):
         )
         st.session_state.messages_ui = []
         st.session_state.search_stats = st.session_state.engine.get_search_stats_dict()
-    return num
+
+        return successful
+
+    except Exception as e:
+        progress_placeholder.error(f"❌ Connection failed: {str(e)}")
+        raise
 
 
 def disconnect_mcp():
@@ -733,11 +777,10 @@ def main():
             if st.button("Connect MCP Servers", use_container_width=True):
                 try:
                     n = connect_mcp(cfg)
-                    st.success(f"Connected to {n} server(s)")
                     time.sleep(0.5)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Failed: {e}")
+                    st.error(f"Failed to connect: {e}")
         else:
             st.success("MCP active")
 
@@ -868,7 +911,6 @@ def main():
                 with st.chat_message("assistant"):
                     st.markdown(answer)
 
-                # Update session state stats
                 st.session_state.search_stats = st.session_state.engine.get_search_stats_dict()
 
                 if downloads:
@@ -883,7 +925,6 @@ def main():
                         )
                     st.session_state.pending_downloads = []
 
-                # 🔄 Force a rerun so the sidebar statistics refresh immediately
                 st.rerun()
 
             except Exception as e:
