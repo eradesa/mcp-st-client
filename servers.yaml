@@ -2,6 +2,14 @@
 servers:
   # Local stdio-based servers
   local:
+
+    - name: "remote_test_server_web_search"
+      command: "npx"
+      #args: ["mcp-remote", "http://0.0.0.0:8001/mcp", "--allow-http"]
+      args: ["mcp-remote", "https://faith-hope-love.fastmcp.app/mcp"]
+      #env:
+      #  FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+      transport: "streamable-http"
     
     - name: "open_web_search"
       command: "npx"
