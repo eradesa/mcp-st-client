@@ -73,7 +73,7 @@ servers:
     #  command: "uvx"
     #  args: ["--from", "git+https://github.com/eradesa/mcp-test-server.git@MCP-STDIO", "mcp-server"]
     #  env:
-    #    FILE_IO_BASE_DIR: "/home/erangadesaram/Downloads"  # optional
+    #    FILE_IO_BASE_DIR: "/home/erangadesarhttps://github.com/eradesa/mcp-test-server.git@MCP-STDIOam/Downloads"  # optional
     #  transport: "stdio"
   
     - name: "remote_test_server_web_search"

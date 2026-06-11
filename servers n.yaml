@@ -23,14 +23,7 @@ servers:
         ALLOWED_SEARCH_ENGINES: "brave,duckduckgo,exa"
       transport: "stdio"
 
-    - name: "job_search"
-      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/jobsearch-mcp/.venv/bin/python"
-      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/servers/jobsearch-mcp/jobsearch.py"]
-      env:
-        ADZUNA_APP_ID: "${ADZUNA_APP_ID}"
-        ADZUNA_API_KEY: "${ADZUNA_API_KEY}"
-
-    - name: "whatsapp_automation"
-      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/.venv/bin/python"
-      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/main.py"]
-
+    - name: "git_chess_stat"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/Sec10-MCP-Server/MCP_Chess_Stats/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/Sec10-MCP-Server/MCP_Chess_Stats/src/chess/server.py"]
+      transport: "stdio"

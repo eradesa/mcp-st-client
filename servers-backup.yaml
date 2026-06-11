@@ -1,0 +1,42 @@
+# servers-backup.yaml
+# Backup of MCP server entries removed from servers.yaml (unrelated to job_search)
+# Generated: 2026-05-20
+
+servers:
+  local:
+
+    - name: "git_chess_stat"
+      command: "uvx"
+      args: ["--from", "git+https://github.com/eradesa/mcp-chess-stats.git", "chess"]
+      transport: "stdio"
+
+    - name: "whatsapp_automation"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/main.py"]
+
+    - name: "Real_time_stock_prices_CSE"
+      command: "npx"
+      args: ["-y", "git+https://github.com/eradesa/Real_time_stock_prices_CSE-mcp.git"]
+      transport: "stdio"
+
+    - name: "Personal_memory_store"
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-memory"]
+      env:
+        MEMORY_FILE_PATH: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/Personal_Knowledge_Graph-Memory_Path/memory.jsonl"
+      transport: "stdio"
+
+    - name: "Airbnb_Search"
+      command: "npx"
+      args: ["-y", "@openbnb/mcp-server-airbnb"]
+      transport: "stdio"
+
+    - name: "sri_lanka_news"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/sri_lanka_news_mcp/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/sri_lanka_news_mcp/news_scraper_server.py"]
+      env: {}
+
+  remote:
+    - name: "Latest_News_Apify"
+      url: "https://mrbridge--latest-news-mcp-server.apify.actor/mcp?token=YOUR_APIFY_TOKEN"
+      transport: "streamable"

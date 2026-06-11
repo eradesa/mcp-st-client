@@ -1,0 +1,44 @@
+# servers.yaml
+servers:
+  # Local stdio-based servers
+  local:
+  
+
+    
+    - name: "open_web_search"
+      command: "npx"
+      args: ["open-websearch@latest"]
+      env:
+        MODE: "stdio"                     # Force stdio mode
+        DEFAULT_SEARCH_ENGINE: "brave"   # or bing, exa, brave, duckduckgo        
+        ALLOWED_SEARCH_ENGINES: "brave,duckduckgo,startpage"
+      transport: "stdio"
+
+   
+    - name: "whatsapp_automation"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/.venv/bin/python"  # Or the full path to your python executable
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-mcp-server/main.py"]
+
+    
+    - name: "Personal_memory_store" #Personal_Knowledge_Graph_memory_store
+      command: "npx"
+      args: [
+        "-y", 
+        "@modelcontextprotocol/server-memory"
+      ]
+      env:
+        # Optional: Specify where to save the memory file
+        MEMORY_FILE_PATH: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/mcp-deepseek-client/Personal_Knowledge_Graph-Memory_Path/memory.jsonl"
+      transport: "stdio"
+      
+  
+    - name: "sri_lanka_news"
+      command: "/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/sri_lanka_news_mcp/.venv/bin/python"
+      args: ["/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/sri_lanka_news_mcp/news_scraper_server.py"]
+      env: {}
+      #transport: "stdio"
+
+  remote:
+    - name: "Latest_News_Apify"
+      url: "https://mrbridge--latest-news-mcp-server.apify.actor/mcp?token=YOUR_APIFY_TOKEN"
+      transport: "streamable"

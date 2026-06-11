@@ -1,0 +1,2 @@
+export WHATSAPP_DB_PATH="/home/erangadesaram/Documents/Eranga/Dev/MCP-Udemy/MCP_Server_with_WhatsApp/whatsapp-mcp/whatsapp-bridge/store/messages.db"
+uv run --active whatsapp_monitor.py --debug-allow-all

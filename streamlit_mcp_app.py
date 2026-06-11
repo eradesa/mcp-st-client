@@ -654,13 +654,163 @@ class DeepSeekEngine:
 
 
 # -----------------------------------------------------------------------------
+# MultiLLMEngine – supports DeepSeek and OpenAI (gpt-5-nano default)
+# -----------------------------------------------------------------------------
+class MultiLLMEngine:
+    def __init__(self, mcp_client: Optional[SyncMCPClient] = None, model: str = "gpt-5-nano"):
+        self.mcp = mcp_client
+        self.model = model
+
+        if model.startswith("gpt-"):
+            api_key = os.environ.get("OPENAI_API_KEY")
+            self.client = OpenAI(api_key=api_key)
+        else:
+            api_key = os.environ.get("DEEPSEEK_API_KEY")
+            base_url = "https://api.deepseek.com"
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
+
+        self.search_stats = {
+            'count': 0,
+            'engines': set(),
+            'results': 0
+        }
+
+    def _parse_tool_name(self, full_name: str) -> tuple:
+        if "__" in full_name:
+            return full_name.split("__", 1)
+        return "unknown", full_name
+
+    def _is_write_file_tool(self, tool_name: str) -> bool:
+        base_name = tool_name.split("__")[-1] if "__" in tool_name else tool_name
+        return base_name == "write_file"
+
+    def _track_search(self, tool_name: str, args: dict, result: str):
+        if "search" in tool_name.lower():
+            self.search_stats['count'] += 1
+            engines = args.get('engines', ['default'])
+            if isinstance(engines, list):
+                self.search_stats['engines'].update(engines)
+            else:
+                self.search_stats['engines'].add(str(engines))
+            try:
+                result_data = json.loads(result)
+                if 'totalResults' in result_data:
+                    self.search_stats['results'] += result_data['totalResults']
+                elif 'results' in result_data and isinstance(result_data['results'], list):
+                    self.search_stats['results'] += len(result_data['results'])
+            except:
+                limit = args.get('limit', 0)
+                if isinstance(limit, (int, float)) and limit > 0:
+                    self.search_stats['results'] += limit
+
+    def reset_search_stats(self):
+        self.search_stats = {
+            'count': 0,
+            'engines': set(),
+            'results': 0
+        }
+
+    def get_search_stats_dict(self):
+        return {
+            'count': self.search_stats['count'],
+            'engines': sorted(self.search_stats['engines']),
+            'results': self.search_stats['results']
+        }
+
+    def process_conversation(self, messages: List[Dict], manual_limit: int = 0) -> Tuple[str, List[Dict], List[Dict]]:
+        tools_schema = self.mcp.get_tools_schema() if self.mcp else []
+        current_messages = messages.copy()
+        pending_downloads = []
+
+        while True:
+            params = {
+                "model": self.model,
+                "messages": current_messages,
+            }
+            if self.model.startswith("deepseek-"):
+                params["temperature"] = 0.7
+                params["max_tokens"] = 2000
+
+            if tools_schema:
+                params["tools"] = tools_schema
+                params["tool_choice"] = "auto"
+
+            response = self.client.chat.completions.create(**params)
+            msg = response.choices[0].message
+
+            if not (self.mcp and hasattr(msg, 'tool_calls') and msg.tool_calls):
+                if msg.content:
+                    current_messages.append({"role": "assistant", "content": msg.content})
+                    return msg.content, current_messages, pending_downloads
+                return "", current_messages, pending_downloads
+
+            tool_calls_data = [tc.model_dump() for tc in msg.tool_calls]
+            current_messages.append({
+                "role": "assistant",
+                "content": None,
+                "tool_calls": tool_calls_data
+            })
+
+            for tc in msg.tool_calls:
+                args = json.loads(tc.function.arguments)
+                srv_name, tool_name = self._parse_tool_name(tc.function.name)
+
+                if self._is_write_file_tool(tool_name):
+                    content = args.get("content", "")
+                    filename = args.get("filename", "output.txt")
+                    filename = os.path.basename(filename)
+                    if not filename:
+                        filename = "output.txt"
+                    if "." not in filename:
+                        filename += ".txt"
+
+                    pending_downloads.append({
+                        "content": content,
+                        "filename": filename,
+                        "tool_call_id": tc.id
+                    })
+
+                    tool_response = (
+                        f"File '{filename}' prepared for download. "
+                        f"Since the app is hosted, the file will be saved to your local computer "
+                        f"via a download button. Click the button below to save it."
+                    )
+                    current_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": tool_response
+                    })
+                    logger.info(f"Intercepted write_file: {filename} (will offer download)")
+                    continue
+
+                if "search" in tool_name.lower() and manual_limit > 0:
+                    if tool_name.lower() != 'perform_websearch':
+                        args["limit"] = manual_limit
+                        logger.info(f"Manual override: limit={manual_limit}")
+
+                logger.info(f"Executing {srv_name}.{tool_name} with args {json.dumps(args)}")
+                result = self.mcp.execute_tool(srv_name, tool_name, args)
+                logger.info(f"Tool result length: {len(result)}")
+
+                self._track_search(tool_name, args, result)
+
+                current_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result
+                })
+
+
+# -----------------------------------------------------------------------------
 # Streamlit UI
 # -----------------------------------------------------------------------------
 def init_state():
     if "mcp_client" not in st.session_state:
         st.session_state.mcp_client = None
+    if "model" not in st.session_state:
+        st.session_state.model = "gpt-5-nano"
     if "engine" not in st.session_state:
-        st.session_state.engine = DeepSeekEngine(None)
+        st.session_state.engine = MultiLLMEngine(None, model=st.session_state.model)
     if "conv" not in st.session_state:
         st.session_state.conv = ConversationMemory()
         st.session_state.conv.add_message("system", "You are a helpful AI assistant.")
@@ -713,7 +863,7 @@ def connect_mcp(config_path: str):
 
         # Initialize session state with the client
         st.session_state.mcp_client = mcp
-        st.session_state.engine = DeepSeekEngine(mcp)
+        st.session_state.engine = MultiLLMEngine(mcp, model=st.session_state.model)
         st.session_state.mcp_connected = True
         st.session_state.conv.clear()
         st.session_state.conv.add_message(
@@ -756,7 +906,7 @@ def disconnect_mcp():
     if st.session_state.mcp_client:
         st.session_state.mcp_client.cleanup()
     st.session_state.mcp_client = None
-    st.session_state.engine = DeepSeekEngine(None)
+    st.session_state.engine = MultiLLMEngine(None, model=st.session_state.model)
     st.session_state.mcp_connected = False
     st.session_state.conv.clear()
     st.session_state.conv.add_message("system", "You are a helpful AI assistant. No external tools.")
@@ -766,12 +916,28 @@ def disconnect_mcp():
 
 
 def main():
-    st.set_page_config(page_title="DeepSeek + MCP", page_icon="🤖", layout="wide")
-    st.title("🤖 DeepSeek Chat with MCP")
+    st.set_page_config(page_title="MultiLLM + MCP", page_icon="🤖", layout="wide")
+    st.title("🤖 MultiLLM Chat with MCP")
     st.markdown("Connect MCP servers to use tools, prompts, and resources. Files that would be written are offered as downloads.")
     init_state()
 
     with st.sidebar:
+        st.header("🧠 Model")
+        model_option = st.selectbox(
+            "Select LLM",
+            options=["gpt-5-nano", "deepseek-chat"],
+            index=0 if st.session_state.model == "gpt-5-nano" else 1,
+            key="model_selector"
+        )
+        if model_option != st.session_state.model:
+            st.session_state.model = model_option
+            if st.session_state.mcp_client:
+                st.session_state.engine = MultiLLMEngine(st.session_state.mcp_client, model=model_option)
+            else:
+                st.session_state.engine = MultiLLMEngine(None, model=model_option)
+            st.rerun()
+
+        st.divider()
         st.header("🔌 MCP Connection")
         if not st.session_state.mcp_connected:
             cfg = st.text_input("Config file", value="servers.yaml", key="config_file_input")
@@ -932,7 +1098,7 @@ def main():
                 st.error(f"Error: {e}")
                 logger.exception("Processing error")
 
-    st.caption("Powered by DeepSeek. MCP servers provide tools, prompts, and resources. Write operations are converted to downloads.")
+    st.caption("Powered by MultiLLM. MCP servers provide tools, prompts, and resources. Write operations are converted to downloads.")
 
 
 if __name__ == "__main__":

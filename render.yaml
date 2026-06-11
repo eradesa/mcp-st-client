@@ -17,7 +17,7 @@ services:
       apt-get install -y nodejs
       # Install global npm packages that your MCP servers may need
       npm install -g @modelcontextprotocol/server-filesystem
-    startCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    startCommand: streamlit run streamlit_mcp_app.py --server.port $PORT --server.address 0.0.0.0
     envVars:
       - key: DEEPSEEK_API_KEY
         sync: false

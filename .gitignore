@@ -8,3 +8,15 @@ wheels/
 
 # Virtual environments
 .venv
+**/.venv/
+
+# Secrets
+.env
+*state.json
+*.log
+*.zip
+*.db
+
+# IDE
+.vscode/
+.idea/
